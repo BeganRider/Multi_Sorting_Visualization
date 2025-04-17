@@ -360,7 +360,10 @@ def main():
                 insertion_sort_gen = insertion_sort(insertion_info, ascending=True)
                 selection_selction_gen = selection_sort(selection_info, ascending=True)
                 quicksort_sort_gen = quicksort_sort(quicksort_info, ascending=True)
-
+                bubble_tick = 0
+                insertion_tick = 0
+                selection_tick = 0
+                quicksort_tick = 0
                 # Reset step counts and timers
                 bubble_steps = insertion_steps = selection_steps = quicksort_steps = 0
                 bubble_elapsed_time = insertion_elapsed_time = selection_elapsed_time = quicksort_elapsed_time = 0

@@ -1,0 +1,5 @@
+Algorithm,Steps,Time (s)
+Bubble Sort,0,0.261
+Insertion Sort,0,0.002
+Selection Sort,0,6.792
+Quick Sort,1274,7.004

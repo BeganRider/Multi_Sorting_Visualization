@@ -3,6 +3,5 @@
   "window_height": 700,
   "n": 50,
   "min_val": 0,
-  "max_val": 100,
-  "default_tick_speed": 120
+  "max_val": 100
 }

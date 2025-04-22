@@ -1,11 +1,25 @@
 import pygame
-import random
+
 import math
 import time
 import json
+from csv_importer import load_datasets_from_csv, generate_starting_list, export_results_to_csv
+
+import pandas as pd
+
+dataframe = None
+csv_loaded = False
+
+
+filename = "sorted_lists.csv"
+csv_data_columns = []
+csv_data = None
+csv_columns = []
 
 pygame.init()
 
+current_column = 0
+results = []
 
 class DrawInformation:
     BLACK = 0, 0, 0
@@ -62,6 +76,17 @@ def draw(draw_info, algo_name, ascending, step_count, time, ticks):
     draw_list(draw_info)
     pygame.display.update()
 
+def load_csv_dataset(path):
+    global dataframe
+    dataframe = pd.read_csv(path)
+    return dataframe
+
+def get_column_data(index):
+    global dataframe
+    if index >= len(dataframe.columns):
+        return None
+    column = dataframe.iloc[:, index].dropna().tolist()
+    return [int(val) for val in column]
 
 def draw_list(draw_info, color_positions={}, clear_bg=False):
     lst = draw_info.lst
@@ -86,16 +111,13 @@ def draw_list(draw_info, color_positions={}, clear_bg=False):
         pygame.display.update()
 
 
-
-def generate_starting_list(n, min_val, max_val):
-    return [random.randint(min_val, max_val) for _ in range(n)]
-
-
 def bubble_sort(draw_info, ascending=True):
     lst = draw_info.lst
     steps = 0
 
     for i in range(len(lst) - 1):
+        swapped = False  # Flag to track if any swap occurred
+
         for j in range(len(lst) - 1 - i):
             num1 = lst[j]
             num2 = lst[j + 1]
@@ -104,7 +126,13 @@ def bubble_sort(draw_info, ascending=True):
                 lst[j], lst[j + 1] = lst[j + 1], lst[j]
                 draw_list(draw_info, {j: draw_info.GREEN, j + 1: draw_info.RED}, True)
                 steps += 1  # count a swap as a step
+                swapped = True  # A swap occurred
             yield steps
+
+        # If no swaps occurred, the list is sorted
+        if not swapped:
+            break  # Stop early as the list is sorted
+
     yield steps
 
 
@@ -185,7 +213,33 @@ def quicksort_sort(draw_info, ascending=True):
 
     yield steps
 
+def show_dataset_selection_screen(window):
+    font = pygame.font.SysFont('comicsans', 32)
+    small_font = pygame.font.SysFont('comicsans', 24)
 
+    selecting = True
+    while selecting:
+        window.fill((255, 255, 255))
+
+        title = font.render("Choose Data Source", True, (0, 0, 0))
+        option1 = small_font.render("Press R for Random Dataset", True, (0, 0, 0))
+        option2 = small_font.render("Press D to Load from CSV", True, (0, 0, 0))
+
+        window.blit(title, (window.get_width() // 2 - title.get_width() // 2, 200))
+        window.blit(option1, (window.get_width() // 2 - option1.get_width() // 2, 300))
+        window.blit(option2, (window.get_width() // 2 - option2.get_width() // 2, 340))
+
+        pygame.display.update()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    return "random"
+                elif event.key == pygame.K_d:
+                    return "csv"
 
 def get_tick_speed_input():
     pygame.init()
@@ -222,13 +276,31 @@ def print_controls():
     print("SPACE - Start Sorting")
     print("R - Reset")
     print("T - Change Tick Speed")
+    print("A - Change Dataset Origin")
     print("================\n")
+
+def export_results():
+    if results:
+        df = pd.DataFrame(results)
+        df.to_csv("sorting_results.csv", index=False)
+        print("Results exported to sorting_results.csv")
 
 def load_config(path="settings.json"):
     with open(path, "r") as f:
         return json.load(f)
 
 def main():
+    current_column= 0
+    results = []
+
+    results = {
+        "Bubble Sort": {},
+        "Insertion Sort": {},
+        "Selection Sort": {},
+        "Quick Sort": {}
+    }
+
+
     print_controls()
     tick_speed = get_tick_speed_input()
     run = True
@@ -243,7 +315,7 @@ def main():
     n = config["n"]
     min_val = config["min_val"]
     max_val = config["max_val"]
-    tick_speed = config["default_tick_speed"]
+ #   tick_speed = config["default_tick_speed"]
 
     #window_width = 1200
     #window_height = 600
@@ -253,7 +325,19 @@ def main():
     #n = 50
     #min_val = 0
     #max_val = 100
-    starting_list = generate_starting_list(n, min_val, max_val)
+
+
+    dataset_choice = show_dataset_selection_screen(window)
+
+    if dataset_choice == "random":
+        starting_list = generate_starting_list(n, min_val, max_val)
+    elif dataset_choice == "csv":
+        import pandas as pd
+        #filename = "sorted_lists.csv"  # or prompt for file
+        df = pd.read_csv(filename)
+        # Use the first numeric column, for example:
+        starting_list = df[df.columns[0]].dropna().astype(int).tolist()
+        csv_columns = list(df.columns)
 
     half_width = window_width // 2
     quart_width = half_width // 2
@@ -262,7 +346,7 @@ def main():
     selection_info = DrawInformation(window, half_width, quart_width, window_height, starting_list.copy())
     quicksort_info = DrawInformation(window, half_width + quart_width, quart_width, window_height, starting_list.copy())
 
-    selection_selction_gen = selection_sort(selection_info, ascending=True)
+    selection_sort_gen = selection_sort(selection_info, ascending=True)
     quicksort_sort_gen = quicksort_sort(quicksort_info, ascending=True)
     bubble_sort_gen = bubble_sort(bubble_info, ascending=True)
     insertion_sort_gen = insertion_sort(insertion_info, ascending=True)
@@ -302,12 +386,18 @@ def main():
             if bubble_sorting:
                 try:
                     bubble_steps = next(bubble_sort_gen)
-                    bubble_tick += 1
+                    bubble_tick += 1  # increment only if sorting is still running
                     bubble_elapsed_time = time.time() - bubble_start_time
+                    #print(bubble_tick)
+
                 except StopIteration:
+                    bubble_tick += 1  # increment once even when sorting finishes
                     bubble_sorting = False
-                    bubble_tick += 1
                     bubble_elapsed_time = time.time() - bubble_start_time
+                    results["Bubble Sort"] = {
+                        "Steps": bubble_steps,
+                        "Time (s)": round(bubble_elapsed_time, 3)
+                    }
 
             if insertion_sorting:
                 try:
@@ -317,15 +407,23 @@ def main():
                 except StopIteration:
                     insertion_tick += 1
                     insertion_sorting = False
+                    results["Insertion Sort"] = {
+                        "Steps": insertion_steps,
+                        "Time (s)": round(insertion_elapsed_time, 3)
+                    }
 
             if selection_sorting:
                 try:
-                   selection_steps = next(selection_selction_gen)
-                   selection_tick += 1
-                   selection_elapsed_time = time.time() - selection_start_time
+                    selection_steps = next(selection_sort_gen)
+                    selection_tick += 1
+                    selection_elapsed_time = time.time() - selection_start_time
                 except StopIteration:
                     selection_tick += 1
                     selection_sorting = False
+                    results["Selection Sort"] = {
+                        "Steps": selection_steps,
+                        "Time (s)": round(selection_elapsed_time, 3)
+                    }
 
             if quicksort_sorting:
                 try:
@@ -335,6 +433,24 @@ def main():
                 except StopIteration:
                     quicksort_tick += 1
                     quicksort_sorting = False
+                    results["Quick Sort"] = {
+                        "Steps": quicksort_steps,
+                        "Time (s)": round(quicksort_elapsed_time, 3)
+                    }
+        if not bubble_sorting and not insertion_sorting and not selection_sorting and not quicksort_sorting:
+            if csv_loaded:
+                results.append({
+                    "Column": current_column,
+                    "Bubble_Steps": bubble_steps,
+                    "Bubble_Time": bubble_elapsed_time,
+                    "Insertion_Steps": insertion_steps,
+                    "Insertion_Time": insertion_elapsed_time,
+                    "Selection_Steps": selection_steps,
+                    "Selection_Time": selection_elapsed_time,
+                    "Quicksort_Steps": quicksort_steps,
+                    "Quicksort_Time": quicksort_elapsed_time
+                })
+                sorting = False
 
         draw(bubble_info, "Bubble Sort", True, bubble_steps, bubble_elapsed_time,bubble_tick)
         draw(insertion_info, "Insertion Sort", True, insertion_steps, insertion_elapsed_time,insertion_tick)
@@ -358,7 +474,7 @@ def main():
                 # Reinitialize generators
                 bubble_sort_gen = bubble_sort(bubble_info, ascending=True)
                 insertion_sort_gen = insertion_sort(insertion_info, ascending=True)
-                selection_selction_gen = selection_sort(selection_info, ascending=True)
+                selection_sort_gen = selection_sort(selection_info, ascending=True)
                 quicksort_sort_gen = quicksort_sort(quicksort_info, ascending=True)
                 bubble_tick = 0
                 insertion_tick = 0
@@ -372,10 +488,6 @@ def main():
 
             elif event.key == pygame.K_SPACE and sorting == False:
                 sorting = True
-                bubble_elapsed_time=0
-                insertion_elapsed_time=0
-                selection_elapsed_time=0
-                quicksort_elapsed_time=0
                 bubble_start_time=time.time()
                 insertion_start_time=time.time()
                 quicksort_start_time=time.time()
@@ -385,9 +497,70 @@ def main():
                 tick_speed = get_tick_speed_input()
                 window = pygame.display.set_mode((window_width, window_height))  # Restore window
                 pygame.display.set_caption("Side-by-Side Sorting Algorithms")
+            elif event.key == pygame.K_a:
+                dataset_choice = show_dataset_selection_screen(window)
+                if dataset_choice == "random":
+                    starting_list = generate_starting_list(n, min_val, max_val)
+                elif dataset_choice == "csv":
+                    import pandas as pd
+                    #filename = "sorted_lists.csv"  # or prompt for file
+                    df = pd.read_csv(filename)
+                    # Use the first numeric column, for example:
+                    starting_list = df[df.columns[0]].dropna().astype(int).tolist()
+                    csv_data = df
+
+            elif event.key == pygame.K_n and dataset_choice == 'csv':
+                print(len(csv_columns))
+                if current_column <= len(csv_columns):
+                    current_column += 1  # Increment the current_column to move to the next one
+                elif current_column > len(csv_columns):
+                    current_column = 0
+
+                # Check if there are more columns available to display
+                if df is not None and current_column < len(csv_columns):
+                    # Get the next column's data
+                    column_data = df.iloc[:, current_column].dropna().tolist()
+
+                    # Truncate or pad the list to match expected length
+                    if len(column_data) > n:
+                        column_data = column_data[:n]
+                    elif len(column_data) < n:
+                        column_data += [random.randint(min_val, max_val) for _ in range(n - len(column_data))]
+
+                    # Reinitialize sort visualizer with the new column data
+                    bubble_info.set_list(column_data.copy())
+                    insertion_info.set_list(column_data.copy())
+                    selection_info.set_list(column_data.copy())
+                    quicksort_info.set_list(column_data.copy())
+
+                    # Reinitialize the sorting generators
+                    bubble_sort_gen = bubble_sort(bubble_info, ascending=True)
+                    insertion_sort_gen = insertion_sort(insertion_info, ascending=True)
+                    selection_sort_gen = selection_sort(selection_info, ascending=True)
+                    quicksort_sort_gen = quicksort_sort(quicksort_info, ascending=True)
+
+                    # Reset step counts and timers
+                    bubble_tick = 0
+                    insertion_tick = 0
+                    selection_tick = 0
+                    quicksort_tick = 0
+                    bubble_steps = insertion_steps = selection_steps = quicksort_steps = 0
+                    bubble_elapsed_time = insertion_elapsed_time = selection_elapsed_time = quicksort_elapsed_time = 0
+                    bubble_sorting = insertion_sorting = selection_sorting = quicksort_sorting = True
+                    sorting = False
+                else:
+                    print("All CSV columns processed or CSV not loaded.")
+                    print(csv_columns)
+                    print(current_column)
 
     pygame.quit()
-
+    export_results_to_csv(results)
+    print("Results exported to results.csv.")
+    if results:
+        with open("sort_results.csv", "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=results[0].keys())
+            writer.writeheader()
+            writer.writerows(results)
 
 if __name__ == "__main__":
     main()

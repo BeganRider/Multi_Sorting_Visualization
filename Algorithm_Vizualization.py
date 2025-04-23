@@ -3,6 +3,7 @@ import pygame
 import math
 import time
 import json
+import csv
 from csv_importer import load_datasets_from_csv, generate_starting_list, export_results_to_csv
 
 import pandas as pd
@@ -510,10 +511,11 @@ def main():
                     csv_data = df
 
             elif event.key == pygame.K_n and dataset_choice == 'csv':
-                print(len(csv_columns))
-                if current_column <= len(csv_columns):
+                print(current_column)
+                print(results)
+                if current_column < len(csv_columns):   
                     current_column += 1  # Increment the current_column to move to the next one
-                elif current_column > len(csv_columns):
+                if current_column >= len(csv_columns):
                     current_column = 0
 
                 # Check if there are more columns available to display
@@ -554,13 +556,10 @@ def main():
                     print(current_column)
 
     pygame.quit()
-    export_results_to_csv(results)
-    print("Results exported to results.csv.")
-    if results:
-        with open("sort_results.csv", "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=results[0].keys())
-            writer.writeheader()
-            writer.writerows(results)
+    #export_results_to_csv(results)
+    #print("Results exported to results.csv.")
+    #df = pd.DataFrame(results)
+    #df.to_csv("results.csv", index=False)
 
 if __name__ == "__main__":
     main()

@@ -42,6 +42,7 @@ class DrawInformation:
         self.block_width = round((self.width - self.SIDE_PAD) / len(lst))
         self.block_height = math.floor((self.height - self.TOP_PAD) / (self.max_val - self.min_val))
         self.start_x = self.x_offset + self.SIDE_PAD // 2
+
 def draw(draw_info, algo_name, ascending, step_count, time, ticks):
     draw_info.window.fill(draw_info.BACKGROUND_COLOR, (draw_info.x_offset, 0, draw_info.width, draw_info.height))
     title = draw_info.LARGE_FONT.render(f"{algo_name}", 1, draw_info.GREEN)
@@ -54,6 +55,7 @@ def draw(draw_info, algo_name, ascending, step_count, time, ticks):
     draw_info.window.blit(ticks, (draw_info.x_offset + draw_info.width / 2 - ticks.get_width() / 2, 60))
     draw_list(draw_info)
     pygame.display.update()
+
 def load_csv_dataset(path):
     global dataframe
     dataframe = pd.read_csv(path)
@@ -111,6 +113,7 @@ def selection_sort(draw_info, ascending=True):
             draw_list(draw_info, {i: draw_info.GREEN, min_index: draw_info.RED}, True)
             steps += 1
     yield steps
+
 def insertion_sort(draw_info, ascending=True):
     lst = draw_info.lst
     steps = 0
@@ -127,6 +130,7 @@ def insertion_sort(draw_info, ascending=True):
         if j != i:
             steps += 1  
             yield steps
+
     yield steps
 def quicksort_sort(draw_info, ascending=True):
     lst = draw_info.lst
